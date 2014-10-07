@@ -1,0 +1,130 @@
+#########################################################################
+# Makefile for istgt
+#########################################################################
+
+top_srcdir = ..
+srcdir   = .
+
+prefix   = /usr/local
+exec_prefix = ${prefix}
+bindir   = ${exec_prefix}/bin
+sbindir  = ${exec_prefix}/sbin
+sysconfdir = ${prefix}/etc
+datarootdir = ${prefix}/share
+datadir  = ${datarootdir}
+libexecdir = ${exec_prefix}/libexec
+mandir   = ${datarootdir}/man
+
+CC       = gcc
+CFLAGS   = -g -O2 -Wall -Wextra 
+CPPFLAGS =  -I$(top_srcdir) -I$(srcdir)
+LDFLAGS  =  
+DEFS     = -DHAVE_CONFIG_H
+LIBS     = -lpthread  -lfgapi
+INSTALL  = /usr/bin/install -c
+MKDIR_P  = /bin/mkdir -p
+RANLIB   = ranlib
+MKDEP	 = 
+
+CFLAGS  += -DDEBUG
+CFLAGS  += -fno-strict-aliasing -Wstrict-aliasing
+CFLAGS  += -Wformat=2 -Wreturn-type
+CFLAGS  += -Wbad-function-cast -Wcast-align
+CFLAGS  += -Wcast-qual -Wchar-subscripts -Winline
+CFLAGS  += -Wmissing-prototypes -Wnested-externs -Wpointer-arith
+CFLAGS  += -Wredundant-decls -Wshadow -Wstrict-prototypes -Wwrite-strings
+
+source   = istgt.c istgt_iscsi.c istgt_iscsi_param.c \
+	istgt_lu.c istgt_lu_disk.c istgt_lu_disk_vbox.c \
+	istgt_lu_disk_elasto.c  istgt_lu_gluster.c istgt_lu_gfapi.c \
+	istgt_lu_dvd.c istgt_lu_tape.c istgt_lu_pass.c istgt_lu_ctl.c \
+	istgt_log.c istgt_conf.c istgt_sock.c istgt_misc.c \
+	istgt_queue.c istgt_crc32c.c istgt_md5.c md5.c
+header   = istgt_ver.h istgt.h istgt_iscsi.h istgt_iscsi_param.h \
+	istgt_scsi.h istgt_proto.h istgt_lu.h \
+	istgt_log.h istgt_conf.h istgt_sock.h \
+	istgt_misc.h istgt_queue.h istgt_crc32c.h istgt_md5.h md5.h
+document = 
+sample   = 
+
+ctl_source = istgtcontrol.c istgt_conf.c istgt_log.c istgt_sock.c istgt_misc.c \
+	istgt_md5.c md5.c
+ctl_header = istgt_ver.h istgt_conf.h istgt_log.h istgt_sock.h istgt_misc.h \
+	istgt_md5.h md5.h
+
+ISTGT    = $(source:.c=.o)
+ISTGTCONTROL = $(ctl_source:.c=.o)
+
+PACKAGE_NAME = istgt
+PACKAGE_STRING = istgt 0.5
+PACKAGE_TARNAME = istgt
+PACKAGE_VERSION = 0.5
+
+VER_H = istgt_ver.h
+DISTBASE = istgt
+DISTVER  = `sed -e '/ISTGT_VERSION/!d' -e 's/[^0-9.]*\([0-9.a-z]*\).*/\1/' $(VER_H)`
+DISTEXTVER = `sed -e '/ISTGT_EXTRA_VERSION/!d' -e 's/[^0-9.]*\([0-9.a-z]*\).*/\1/' $(VER_H)`
+#DISTDIR  = $(PACKAGE_NAME)-$(PACKAGE_VERSION)
+#DISTDIR  = $(DISTBASE)-$(DISTVER)-$(DISTEXTVER)
+#DISTDIR  = $(DISTBASE)-$(DISTEXTVER)
+DISTDIR = $(top_srcdir)/`cat $(top_srcdir)/distdir`
+DISTNAME = $(DISTDIR).tar.gz
+DISTFILES = Makefile.in config.h.in build.h.in \
+	$(header) $(source) $(ctl_header) $(ctl_source) \
+	$(document) $(sample)
+
+#########################################################################
+
+.SUFFIXES: .c .o
+.c.o:
+	$(CC) $(DEFS) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+
+.PHONY: all install install-dirs
+all: stamp-depend config.h istgt istgtcontrol
+
+istgt: $(ISTGT)
+	$(CC) $(LDFLAGS) -o $@ $(ISTGT) $(LIBS)
+
+istgtcontrol: $(ISTGTCONTROL)
+	$(CC) $(LDFLAGS) -o $@ $(ISTGTCONTROL) $(LIBS)
+
+install: install-dirs
+	$(INSTALL) -m 0755 istgt $(DESTDIR)$(sbindir)
+	$(INSTALL) -m 0755 istgtcontrol $(DESTDIR)$(sbindir)
+
+install-dirs:
+	$(MKDIR_P) $(DESTDIR)$(sbindir)
+
+.PHONY: dist clean distclean depend
+dist: $(DISTFILES)
+	if [ -f "$(top_srcdir)/distdir" ]; then \
+		$(MKDIR_P) $(DISTDIR)/$(subdir) \
+		cd $(srcdir); thisdir=`pwd`; \
+		for file in `echo $(DISTFILES) | sort`; do \
+		    cp -p $$thisdir/$$file $(DISTDIR)/$(subdir); \
+		done \
+	fi
+
+depend:
+	if [ "x$(MKDEP)" != "x" ]; then \
+		$(MKDEP) -MM $(DEFS) $(CFLAGS) $(CPPFLAGS) $(source); \
+	fi
+	touch stamp-depend
+
+clean:
+	-rm -f a.out *.o *.core
+	-rm -f *~
+	-rm -f istgt istgtcontrol
+
+distclean: clean
+	-rm -f stamp-depend .depend
+	-rm -f stamp-h.in
+	-rm -f Makefile config.status config.cache config.log config.h
+	-rm -f build.h
+
+#########################################################################
+
+stamp-depend: Makefile
+	$(MAKE) depend
+
+#########################################################################
